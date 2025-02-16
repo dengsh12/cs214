@@ -1,3 +1,4 @@
+# 第一个函数执行的慢可能是severless在冷启动
 import requests
 import threading
 import time
@@ -13,12 +14,12 @@ def call_manage_topic(url: str, payload: dict):
     """
     调用 http_trigger_manage_topic，删除并重新创建 Topic
     """
-    print("[ManageTopic] Deleting and recreating topic...")
+    print("🟢 [ManageTopic] Deleting and recreating topic...")
     response = requests.post(url, json=payload)
     if response.status_code == 200:
-        print(f"[ManageTopic] Success: {response.text}")
+        print(f"🟢 [ManageTopic] Success: {response.text}")
     else:
-        print(f"[ManageTopic] Failed: {response.text}")
+        print(f"🟢 [ManageTopic] Failed: {response.text}")
 
 @utility.timer
 def call_producer(url: str, payload: dict):
@@ -28,9 +29,9 @@ def call_producer(url: str, payload: dict):
     print("🚀 [Producer] Producing messages...")
     response = requests.post(url, json=payload)
     if response.status_code == 200:
-        print(f"[Producer] Success: {response.text}")
+        print(f"🚀 [Producer] Success: {response.text}\n")
     else:
-        print(f"[Producer] Failed: {response.text}")
+        print(f"🚀 [Producer] Failed: {response.text}\n")
 
 @utility.timer
 def call_consumer(url: str, payload: dict):
@@ -40,9 +41,9 @@ def call_consumer(url: str, payload: dict):
     print("🔴 [Consumer] Consuming messages...")
     response = requests.post(url, json=payload)
     if response.status_code == 200:
-        print(f"[Consumer] Success:\n{response.text}")
+        print(f"🔴 [Consumer] Success:\n{response.text}\n")
     else:
-        print(f"[Consumer] Failed: {response.text}")
+        print(f"🔴  [Consumer] Failed: {response.text}\n")
 
 @utility.timer
 def test_function():
@@ -54,7 +55,7 @@ def test_function():
     consumer_url = "https://producerconsumer2.azurewebsites.net/api/http_trigger_consumer?code=K4ebUBWMqstk8To_1Unoi070HzfDEJvgn5pM5nIALjQ3AzFuCfbTXQ=="
 
     # 2. 请求体（Payload）配置
-    num_messages = 2000
+    num_messages = 200000
     manage_topic_payload = {
         "broker_address": "vmforkafka.southcentralus.cloudapp.azure.com:9092",
         "topic_name": "test-throughput",
