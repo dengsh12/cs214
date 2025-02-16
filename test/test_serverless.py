@@ -3,6 +3,7 @@ import threading
 import time
 import sys
 import os
+import concurrent.futures
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import utility
@@ -24,7 +25,7 @@ def call_producer(url: str, payload: dict):
     """
     调用 http_trigger_producer，向 Kafka 发送消息
     """
-    print("[Producer] Producing messages...")
+    print("🚀 [Producer] Producing messages...")
     response = requests.post(url, json=payload)
     if response.status_code == 200:
         print(f"[Producer] Success: {response.text}")
@@ -36,7 +37,7 @@ def call_consumer(url: str, payload: dict):
     """
     调用 http_trigger_consumer，从 Kafka 消费消息并计算延迟
     """
-    print("[Consumer] Consuming messages...")
+    print("🔴 [Consumer] Consuming messages...")
     response = requests.post(url, json=payload)
     if response.status_code == 200:
         print(f"[Consumer] Success:\n{response.text}")
@@ -81,19 +82,32 @@ def test_function():
     print("======== Step 1: Manage topic ========")
     call_manage_topic(manage_topic_url, manage_topic_payload)
 
-    # 4. 同时启动 Producer 和 Consumer
-    print("======== Step 2: Start Producer & Consumer (concurrently) ========")
+    # 4. 使用线程池同时启动多个 Producer 和 Consumer
+    print("======== Step 2: Start Multiple Producers & Consumers with ThreadPoolExecutor ========")
 
-    producer_thread = threading.Thread(target=call_producer, args=(producer_url, producer_payload))
-    consumer_thread = threading.Thread(target=call_consumer, args=(consumer_url, consumer_payload))
+    num_producers = 3  # 你可以根据需要调整这个数量
+    num_consumers = 3  # 你可以根据需要调整这个数量
 
-    # 启动线程
-    producer_thread.start()
-    consumer_thread.start()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # 提交所有 Producer 任务
+        producer_futures = [
+            executor.submit(call_producer, producer_url, producer_payload)
+            for _ in range(num_producers)
+        ]
 
-    # 等待线程结束
-    producer_thread.join()
-    consumer_thread.join()
+        # 提交所有 Consumer 任务
+        consumer_futures = [
+            executor.submit(call_consumer, consumer_url, consumer_payload)
+            for _ in range(num_consumers)
+        ]
+
+        # 等待所有 Producer 任务完成
+        for future in concurrent.futures.as_completed(producer_futures):
+            future.result()  # 这里可以处理返回值或异常
+
+        # 等待所有 Consumer 任务完成
+        for future in concurrent.futures.as_completed(consumer_futures):
+            future.result()  # 这里可以处理返回值或异常
 
     print("======== Test Completed ========")
 
