@@ -54,12 +54,16 @@ def test_function():
     producer_url = "https://producerconsumer2.azurewebsites.net/api/http_trigger_producer?code=fy7ecbTu3OvSiVmKCoy2pc6gnPCHH7sRjqVVJoNikIUuAzFu2e6_jQ=="
     consumer_url = "https://producerconsumer2.azurewebsites.net/api/http_trigger_consumer?code=K4ebUBWMqstk8To_1Unoi070HzfDEJvgn5pM5nIALjQ3AzFuCfbTXQ=="
 
+    num_producers = 50  # 你可以根据需要调整这个数量 
+    num_consumers = num_producers  # 你可以根据需要调整这个数量
+
     # 2. 请求体（Payload）配置
-    num_messages = 200000
+    num_messages = 2000000
     manage_topic_payload = {
         "broker_address": "vmforkafka.southcentralus.cloudapp.azure.com:9092",
         "topic_name": "test-throughput",
-        "num_partitions": 3,
+        # TODO:由于 Kafka 的消费者组机制，消费者数最多等于分区数，否则多余的消费者不会分配到任务。
+        "num_partitions": num_consumers,
         "replication_factor": 1
     }
 
@@ -86,10 +90,8 @@ def test_function():
     # 4. 使用线程池同时启动多个 Producer 和 Consumer
     print("======== Step 2: Start Multiple Producers & Consumers with ThreadPoolExecutor ========")
 
-    num_producers = 3  # 你可以根据需要调整这个数量
-    num_consumers = 3  # 你可以根据需要调整这个数量
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers= num_producers + num_consumers) as executor:
         # 提交所有 Producer 任务
         producer_futures = [
             executor.submit(call_producer, producer_url, producer_payload)
@@ -103,12 +105,16 @@ def test_function():
         ]
 
         # 等待所有 Producer 任务完成
-        for future in concurrent.futures.as_completed(producer_futures):
+        for i, future in enumerate(concurrent.futures.as_completed(producer_futures)):
             future.result()  # 这里可以处理返回值或异常
+            # 输出结束了多少个Producer
+            print(f"🚀 [Producer] Finished: {i+1}/{num_producers}")
 
         # 等待所有 Consumer 任务完成
-        for future in concurrent.futures.as_completed(consumer_futures):
+        for i, future in enumerate(concurrent.futures.as_completed(consumer_futures)):
             future.result()  # 这里可以处理返回值或异常
+            # 输出结束了多少个Consumer
+            print(f"🔴 [Consumer] Finished: {i+1}/{num_consumers}")
 
     print("======== Test Completed ========")
 
