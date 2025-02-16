@@ -4,7 +4,7 @@ from confluent_kafka import Consumer, KafkaException
 import utility
 
 @utility.timer
-def consume_messages(consumer_conf, topic, num_messages, log_interval, latencies):
+def consume_messages(consumer_conf, topic, num_messages, log_interval):
     """
     消费者接收消息并计算延迟
     :param consumer_conf: dict, Consumer 配置信息
@@ -16,6 +16,7 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, latencies
     print("🔴 consume_messages called")
     consumer = Consumer(consumer_conf)
     consumer.subscribe([topic])
+    latencies = []
 
     count = 0
     while count < num_messages:

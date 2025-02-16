@@ -112,7 +112,6 @@ if __name__ == '__main__':
     }
 
     # 6. 准备收集延迟数据
-    latencies = []
     start_time = time.time()
 
     # 7. 启动生产者线程和消费者进程
@@ -125,13 +124,14 @@ if __name__ == '__main__':
     # time.sleep(3)  # 让生产者先发一会，再启动消费者
     # consumer_t.start()
     # 这里的latencies处理逻辑还有问题
-    latencies = consume_messages(consumer_conf, TOPIC, NUM_MESSAGES, LOG_INTERVAL, latencies)
-
+    latencies = consume_messages(consumer_conf, TOPIC, NUM_MESSAGES, LOG_INTERVAL)
+    total_time = time.time() - start_time
+    print("total_time", total_time)
+    
     producer_t.join()
     # consumer_t.join()
 
     # 8. 计算吞吐量和延迟统计
-    total_time = time.time() - start_time
     throughput = NUM_MESSAGES / total_time
 
     if latencies:
