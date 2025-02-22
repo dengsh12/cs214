@@ -6,24 +6,22 @@ import utility
 @utility.timer
 def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_list=None, process_id=0):
     """
-    消费者接收消息，计算延迟，并监控资源使用及冷启动延迟
+    消费者接收消息，计算延迟
     :param consumer_conf: dict, Consumer 配置信息
     :param topic: str, 消费的 Kafka Topic
     :param num_messages: int, 消费的消息数
     :param log_interval: int, 日志打印间隔
     :param metrics_list: Manager list, 用于存放指标数据
     :param process_id: int, 消费者进程编号
-    :return: latencies list（仅用于内部统计，不作为返回值传递）
+    :return: latencies list（仅用于内部统计）
     """
-    # 开启资源监控
-    samples, stop_event, monitor_thread = utility.resource_monitor()
     consumer = Consumer(consumer_conf)
     consumer.subscribe([topic])
     latencies = []
-    cold_start_latency = None
+    cold_start_latencies = []  # 用于存放前 N 条消息延迟
+    cold_start_count = 50  # 定义前50条消息作为冷启动计算
     count = 0
     start_time = time.time()
-    first_msg_time = None
 
     while count < num_messages:
         if count % log_interval == 0:
@@ -34,9 +32,6 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
         if msg.error():
             raise KafkaException(msg.error())
         current_time = time.time()
-        if first_msg_time is None:
-            first_msg_time = current_time
-            cold_start_latency = first_msg_time - start_time
         try:
             sent_time = float(msg.value().decode('utf-8'))
         except Exception as e:
@@ -44,6 +39,8 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
             continue
         latency = current_time - sent_time
         latencies.append(latency)
+        if count < cold_start_count:
+            cold_start_latencies.append(latency)
         count += 1
 
     consumer.close()
@@ -54,7 +51,8 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
     sorted_latencies = sorted(latencies)
     p99_latency = sorted_latencies[int(len(sorted_latencies) * 0.99) - 1] if latencies and len(sorted_latencies) > 0 else 0
     max_latency = max(latencies) if latencies else 0
-    avg_cpu, avg_mem = utility.stop_resource_monitor(samples, stop_event, monitor_thread)
+    # 计算冷启动延迟为前 cold_start_count 条消息的平均延迟
+    cold_start_latency = sum(cold_start_latencies) / len(cold_start_latencies) if cold_start_latencies else 0
     metrics = {
         "process_id": process_id,
         "role": "consumer",
@@ -65,10 +63,9 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
         "p99_latency": p99_latency,
         "max_latency": max_latency,
         "cold_start_latency": cold_start_latency,
-        "avg_cpu": avg_cpu,
-        "avg_mem": avg_mem,
     }
     if metrics_list is not None:
         metrics_list.append(metrics)
     print(f"✅ 消费者[{process_id}]完成接收消息, 耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s")
     return latencies
+    

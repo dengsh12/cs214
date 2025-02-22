@@ -7,5 +7,6 @@ python ./main.py \
   --topic test-throughput_resources \
   --num_producers 2 \
   --num_consumers 2 \
-  --messages_per_producer 500 \
-  --log_interval 100
+  --messages_per_producer 100 \
+  --log_interval 100 \
+  --remote_ips "35.209.251.221,35.239.56.104,35.208.205.25"
