@@ -7,6 +7,8 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from producer import produce_messages
 from consumer import consume_messages
 import utility
+import os
+import json
 
 def delete_topic(admin_client, topic_name):
     """删除 Kafka 主题"""
@@ -93,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("--messages_per_producer", type=int, default=1000, help="每个生产者发送的消息数量")
     parser.add_argument("--log_interval", type=int, default=100, help="日志打印间隔")
     parser.add_argument("--remote_ips", type=str, default="", help="Kafka服务器IP列表，逗号分隔")
+    parser.add_argument("--message_size", type=int, default=100, help="消息大小（字节）")
     args = parser.parse_args()
 
     # 解析远程IP列表
@@ -107,7 +110,7 @@ if __name__ == '__main__':
     if args.mq_type.lower() == "kafka":
         admin_client = AdminClient({"bootstrap.servers": args.broker_address})
         delete_topic(admin_client, args.topic)
-        # 设置分区数为消费者数量，确保每个消费者分到任务
+        # 设置分区数为消费者数量，确保每个消费者都有任务
         create_topic(admin_client, args.topic, num_partitions=args.num_consumers, replication_factor=1)
     else:
         print("目前仅支持 Kafka, 其他 MQ 需要实现对应适配器")
@@ -134,7 +137,7 @@ if __name__ == '__main__':
         p.start()
         processes.append(p)
 
-    # 启动生产者进程
+    # 启动生产者进程，并传入 message_size 参数
     for i in range(args.num_producers):
         p = Process(target=produce_messages, args=(
             {
@@ -144,7 +147,7 @@ if __name__ == '__main__':
                 'linger.ms': 5,
                 'compression.type': 'lz4'
             },
-            args.topic, args.messages_per_producer, args.log_interval, producer_metrics, i
+            args.topic, args.messages_per_producer, args.log_interval, producer_metrics, i, args.message_size
         ))
         p.start()
         processes.append(p)
@@ -155,22 +158,34 @@ if __name__ == '__main__':
 
     # 停止远程监控，获取各 Kafka 服务器的资源数据
     remote_results = stop_remote_monitoring(remote_ips)
+    # 处理远程服务器数据，转换 CPU 为小数，内存转换为 MB
+    processed_remote = []
     if remote_results:
-        avg_cpu_all = sum(item["avg_cpu"] for item in remote_results) / len(remote_results)
-        avg_mem_all = sum(item["avg_mem"] for item in remote_results) / len(remote_results)
-        print("\n===== Kafka服务器资源使用情况 =====")
-        print(f"三个服务器平均 CPU 占用: {avg_cpu_all:.2f}%")
-        print(f"三个服务器平均 内存占用: {avg_mem_all/1024/1024:.2f} MB")
         for item in remote_results:
-            print(f"服务器 {item['ip']}： CPU: {item['avg_cpu']:.2f}%, 内存: {item['avg_mem']/1024/1024:.2f} MB (采样 {item.get('samples_count',0)} 次)")
+            processed_item = {
+                "ip": item["ip"],
+                "avg_cpu": round(item["avg_cpu"] / 100.0, 4),  # 转为小数表示，例如0.03
+                "avg_mem_mb": round(item["avg_mem"] / (1024*1024), 2),
+                "samples_count": item.get("samples_count", 0)
+            }
+            processed_remote.append(processed_item)
+        avg_cpu_all = sum(item["avg_cpu"] for item in remote_results) / len(remote_results) / 100.0
+        avg_mem_all = sum(item["avg_mem"] for item in remote_results) / len(remote_results) / (1024*1024)
+        print("\n===== Kafka服务器资源使用情况 =====")
+        print(f"三个服务器平均 CPU 占用: {avg_cpu_all:.4f}")
+        print(f"三个服务器平均 内存占用: {avg_mem_all:.2f} MB")
+        for item in processed_remote:
+            print(f"服务器 {item['ip']}： CPU: {item['avg_cpu']:.4f}, 内存: {item['avg_mem_mb']:.2f} MB (采样 {item['samples_count']} 次)")
     else:
         print("未获取到远程资源数据。")
 
-    # 汇总生产者、消费者指标（如需要）
+    # 汇总生产者、消费者指标
     total_messages_produced = sum(item["messages"] for item in producer_metrics)
     max_producer_duration = max(item["duration"] for item in producer_metrics) if producer_metrics else 1
     overall_throughput_producers = total_messages_produced / max_producer_duration
 
+    # 计算消费者平均吞吐量：每个消费者的吞吐量均值
+    avg_consumer_throughput = sum(item["throughput"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
     avg_latency = sum(item["avg_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
     avg_p99_latency = sum(item["p99_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
     avg_cold_start = sum(item["cold_start_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
@@ -181,3 +196,38 @@ if __name__ == '__main__':
     print(f"  平均延迟: {avg_latency:.6f} s")
     print(f"  近似99%延迟: {avg_p99_latency:.6f} s")
     print(f"  平均冷启动延迟: {avg_cold_start:.6f} s")
+    print(f"  平均吞吐量: {avg_consumer_throughput:.2f} msg/s")
+
+    # 保存参数和结果到 results 目录下的新文件
+    results_summary = {
+        "parameters": {
+            "mq_type": args.mq_type,
+            "broker_address": args.broker_address,
+            "topic": args.topic,
+            "num_producers": args.num_producers,
+            "num_consumers": args.num_consumers,
+            "messages_per_producer": args.messages_per_producer,
+            "log_interval": args.log_interval,
+            "message_size": args.message_size,
+            "remote_ips": remote_ips
+        },
+        "summary": {
+            "total_messages_produced": total_messages_produced,
+            "producer_avg_throughput": overall_throughput_producers,
+            "consumer_avg_throughput": avg_consumer_throughput,
+            "consumer_avg_latency": avg_latency,
+            "consumer_p99_latency": avg_p99_latency,
+            "consumer_cold_start_latency": avg_cold_start,
+            "remote_servers": processed_remote,
+            "remote_avg_cpu": round(avg_cpu_all, 4),
+            "remote_avg_mem_mb": round(avg_mem_all, 2)
+        }
+    }
+    results_dir = os.path.join("results", args.mq_type)
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    filename = os.path.join(results_dir, f"{args.num_consumers}consumer{args.num_producers}producer{args.messages_per_producer//1000}kmessages_{timestamp}.json")
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(results_summary, f, indent=4, ensure_ascii=False)
+    print(f"\n结果已保存至 {filename}")

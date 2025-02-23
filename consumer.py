@@ -33,7 +33,10 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
             raise KafkaException(msg.error())
         current_time = time.time()
         try:
-            sent_time = float(msg.value().decode('utf-8'))
+            value_str = msg.value().decode('utf-8')
+            # 取消息中 "|" 前面的部分作为时间戳
+            timestamp_str = value_str.split("|")[0]
+            sent_time = float(timestamp_str)
         except Exception as e:
             print(f"🔴 消费者[{process_id}]解码消息失败: {e}")
             continue
@@ -68,4 +71,3 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
         metrics_list.append(metrics)
     print(f"✅ 消费者[{process_id}]完成接收消息, 耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s")
     return latencies
-    
