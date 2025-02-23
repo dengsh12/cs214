@@ -5,6 +5,8 @@ This project should be located at the server acts as producer and consumer.
 After experiments, don't forget to close all instances.
 ## How to run
 
+`gcloud auth login` before running the scripts.
+
 To start all kafka servers, run `./run_shell/kafka_deploy/start_kafka.sh`.
 
 To stop all kafka(but not the server instances), run `./run_shell/kafka_deploy/stop_kafka.sh`
