@@ -1,4 +1,3 @@
-# main.py
 import time
 from multiprocessing import Process, Manager
 import argparse
@@ -55,16 +54,21 @@ def create_topic(admin_client, topic_name, num_partitions=3, replication_factor=
 
 def start_remote_monitoring(remote_ips):
     """
-    对每个 Kafka 服务器调用 /start_monitor 接口
+    对每个 Kafka 服务器调用 /start_monitor 接口，并保存初始数据
     :param remote_ips: list of str, 每个服务器的 IP（或域名）
+    :return: dict，key为ip，value为初始监控数据
     """
+    baseline_data = {}
     for ip in remote_ips:
         url = f"http://{ip}:5000/start_monitor"
         try:
             resp = requests.get(url, timeout=5)
-            print(f"远程监控启动[{ip}]: {resp.json()}")
+            data = resp.json()
+            baseline_data[ip] = data
+            print(f"远程监控启动[{ip}]: {data}")
         except Exception as e:
             print(f"启动远程监控[{ip}]失败: {e}")
+    return baseline_data
 
 def stop_remote_monitoring(remote_ips):
     """
@@ -116,8 +120,8 @@ if __name__ == '__main__':
         print("目前仅支持 Kafka, 其他 MQ 需要实现对应适配器")
         exit(1)
 
-    # 启动远程 Kafka 服务器的资源监控
-    start_remote_monitoring(remote_ips)
+    # 启动远程 Kafka 服务器的资源监控，并保存初始数据
+    baseline_metrics = start_remote_monitoring(remote_ips)
 
     manager = Manager()
     producer_metrics = manager.list()
@@ -156,26 +160,30 @@ if __name__ == '__main__':
     for p in processes:
         p.join()
 
-    # 停止远程监控，获取各 Kafka 服务器的资源数据
+    # 停止远程监控，获取各 Kafka 服务器的最终资源数据
     remote_results = stop_remote_monitoring(remote_ips)
-    # 处理远程服务器数据，转换 CPU 为小数，内存转换为 MB
+    # 计算每个服务器的增量（最终 - 初始），并转换 CPU 为小数、内存转换为 MB
     processed_remote = []
     if remote_results:
         for item in remote_results:
+            ip = item["ip"]
+            baseline = baseline_metrics.get(ip, {})
+            delta_cpu = item.get("avg_cpu", 0) - baseline.get("avg_cpu", 0)
+            delta_mem = item.get("avg_mem", 0) - baseline.get("avg_mem", 0)
             processed_item = {
-                "ip": item["ip"],
-                "avg_cpu": round(item["avg_cpu"] / 100.0, 4),  # 转为小数表示，例如0.03
-                "avg_mem_mb": round(item["avg_mem"] / (1024*1024), 2),
+                "ip": ip,
+                "avg_cpu": round(delta_cpu / 100.0, 4),  # 转为小数表示
+                "avg_mem_mb": round(delta_mem / (1024*1024), 2),
                 "samples_count": item.get("samples_count", 0)
             }
             processed_remote.append(processed_item)
-        avg_cpu_all = sum(item["avg_cpu"] for item in remote_results) / len(remote_results) / 100.0
-        avg_mem_all = sum(item["avg_mem"] for item in remote_results) / len(remote_results) / (1024*1024)
+        avg_cpu_all = sum(item.get("avg_cpu", 0) - baseline_metrics.get(item["ip"], {}).get("avg_cpu", 0) for item in remote_results) / len(remote_results) / 100.0
+        avg_mem_all = sum(item.get("avg_mem", 0) - baseline_metrics.get(item["ip"], {}).get("avg_mem", 0) for item in remote_results) / len(remote_results) / (1024*1024)
         print("\n===== Kafka服务器资源使用情况 =====")
-        print(f"三个服务器平均 CPU 占用: {avg_cpu_all:.4f}")
-        print(f"三个服务器平均 内存占用: {avg_mem_all:.2f} MB")
+        print(f"三个服务器平均 CPU 增量: {avg_cpu_all:.4f}")
+        print(f"三个服务器平均 内存增量: {avg_mem_all:.2f} MB")
         for item in processed_remote:
-            print(f"服务器 {item['ip']}： CPU: {item['avg_cpu']:.4f}, 内存: {item['avg_mem_mb']:.2f} MB (采样 {item['samples_count']} 次)")
+            print(f"服务器 {item['ip']}： CPU 增量: {item['avg_cpu']:.4f}, 内存增量: {item['avg_mem_mb']:.2f} MB (采样 {item['samples_count']} 次)")
     else:
         print("未获取到远程资源数据。")
 
