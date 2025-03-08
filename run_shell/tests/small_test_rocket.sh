@@ -1,7 +1,7 @@
 #!/bin/bash
 # small_test_rocket.sh
 # 运行测试并观察资源使用情况，同时指定消息大小
-
+bash run_shell/rocketmq_deploy/rocketmq_stop_and_clean_all.sh
 bash run_shell/rocketmq_deploy/rocketmq_start.sh
 python main.py \
     --mq_type rocketmq \

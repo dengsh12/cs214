@@ -1,7 +1,7 @@
 #!/bin/bash
 # test_scaling_rocketmq.sh
 # 分别测试不同消费者数量和不同消息数量下的 RocketMQ 性能指标
-
+bash run_shell/rocketmq_deploy/rocketmq_stop_and_clean_all.sh
 for consumers in 5 10 20 30 40; do
     for messages in 50000 1000000 5000000; do
         bash run_shell/rocketmq_deploy/rocketmq_start.sh
