@@ -34,18 +34,18 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     latencies = []
     cold_start_latencies = []
     cold_start_count = 50
-    local_count = 0  # 当前消费者自己消费了多少条
+    local_count = 0  # 当前消费者自己消费的消息数
 
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
 
-    # 定义回调函数，注意要先定义后订阅，避免因回调函数未定义而出现问题
+    # 定义回调函数：在处理消息前先判断是否已达到全局停止标志
     def on_message(msg):
-        nonlocal local_count
+        # ★ 新增：若全局停止标志已置位，则不处理消息直接返回
         if global_stop.value:
-            # 若全局标志已置位，则后续消息直接忽略
             return ConsumeStatus.CONSUME_SUCCESS
 
+        nonlocal local_count
         current_time = time.time()
         try:
             body_str = msg.body.decode('utf-8')
@@ -65,19 +65,22 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
         if local_count % log_interval == 0:
             print(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
 
-        # 全局计数加1，并检查是否达到预期总数
+        # 在锁内判断，只有未达到预期时才累加全局计数
         with count_lock:
-            global_count.value += 1
-            if global_count.value >= total_messages:
-                global_stop.value = True
+            if global_count.value < total_messages:
+                global_count.value += 1
+                if global_count.value >= total_messages:
+                    global_stop.value = True
+            if global_count.value % 5 == 0 and global_count.value > total_messages * 0.9:
+                print(f"🔴 [RocketMQ]消费者[{process_id}]已消费 {global_count.value} 条")
 
         return ConsumeStatus.CONSUME_SUCCESS
 
-    # 在定义好回调函数后，再调用 subscribe
+    # 在定义好回调函数后再订阅
     consumer.subscribe(topic, callback=on_message, expression="*")
     consumer.start()
 
-    # 主循环：只要全局未达到总数就一直等待
+    # 主循环：只要全局计数未达到预期总消息数就一直等待
     while True:
         if global_stop.value:
             break
