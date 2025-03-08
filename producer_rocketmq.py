@@ -36,16 +36,12 @@ def produce_messages_rocketmq(
         nonlocal batch_buffer, batch_size_acc, last_flush_ts
         if not batch_buffer:
             return
-        # 由于 Python 客户端不支持一次性发送 list，这里循环逐条发送
         for msg in batch_buffer:
-            while True:
-                try:
-                    producer.send_sync(msg)
-                    break
-                except Exception as e:
-                    print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}, 重试中...")
-                    time.sleep(1)
-
+            try:
+                # 不再做 while True 无限重试
+                producer.send_sync(msg)
+            except Exception as e:
+                print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}")
         batch_buffer.clear()
         batch_size_acc = 0
         last_flush_ts = time.time()
@@ -78,6 +74,7 @@ def produce_messages_rocketmq(
         ):
             flush_batch()
 
+    # 发送剩余批次
     flush_batch()
 
     producer.shutdown()

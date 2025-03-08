@@ -1,4 +1,3 @@
-# consumer_rocketmq.py
 import time
 import utility
 from rocketmq.client import PushConsumer, ConsumeStatus
@@ -8,17 +7,6 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
                               metrics_list=None, process_id=0):
     """
     使用“全局总量”退出的 RocketMQ 消费者示例。
-    :param consumer_conf: dict, 包含:
-        - namesrv_addr: RocketMQ NameServer
-        - consumer_group: 消费组ID
-        - global_count: 全局已消费数（manager.Value）
-        - count_lock: manager.Lock() 保护global_count
-        - global_stop: manager.Value(bool)，是否已消费完
-        - total_messages: int，总消息数量
-    :param topic: 要消费的 Topic
-    :param log_interval: int, 日志打印间隔
-    :param metrics_list: 用于存放指标数据
-    :param process_id: 消费者编号
     """
     start_time = time.time()
 
@@ -39,9 +27,8 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
 
-    # 定义回调函数：在处理消息前先判断是否已达到全局停止标志
     def on_message(msg):
-        # ★ 新增：若全局停止标志已置位，则不处理消息直接返回
+        # 如果全局停止标志已置位，就不处理消息了
         if global_stop.value:
             return ConsumeStatus.CONSUME_SUCCESS
 
@@ -65,22 +52,20 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
         if local_count % log_interval == 0:
             print(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
 
-        # 在锁内判断，只有未达到预期时才累加全局计数
+        # 全局计数 + 判断是否到达停止条件
         with count_lock:
             if global_count.value < total_messages:
                 global_count.value += 1
                 if global_count.value >= total_messages:
                     global_stop.value = True
-            if global_count.value % 5 == 0 and global_count.value > total_messages * 0.9:
-                print(f"🔴 [RocketMQ]消费者[{process_id}]已消费 {global_count.value} 条")
 
         return ConsumeStatus.CONSUME_SUCCESS
 
-    # 在定义好回调函数后再订阅
+    # 订阅主题
     consumer.subscribe(topic, callback=on_message, expression="*")
     consumer.start()
 
-    # 主循环：只要全局计数未达到预期总消息数就一直等待
+    # 主循环：只要未全局停止就一直等
     while True:
         if global_stop.value:
             break

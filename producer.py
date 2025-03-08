@@ -1,4 +1,3 @@
-# producer.py
 import time
 from confluent_kafka import Producer
 import utility

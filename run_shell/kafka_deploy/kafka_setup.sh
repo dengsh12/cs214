@@ -107,6 +107,16 @@ sed -i "s|^#*advertised.listeners=.*|advertised.listeners=PLAINTEXT://$THIS_PUBL
 ZK_CONNECT="${PRIVATE_NODE1_IP}:2181,${PRIVATE_NODE2_IP}:2181,${PRIVATE_NODE3_IP}:2181"
 sed -i "s|^zookeeper.connect=.*|zookeeper.connect=${ZK_CONNECT}|g" $KAFKA_CONFIG
 
+# ===== 在 server.properties 里增加并发配置，以匹配 RocketMQ
+cat >> $KAFKA_CONFIG <<EOF
+
+#####################
+# For Fair Comparison
+#####################
+num.network.threads=2
+num.io.threads=2
+EOF
+
 # ================================
 # 启动 ZooKeeper 和 Kafka Broker
 echo "Starting ZooKeeper..."

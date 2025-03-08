@@ -143,10 +143,10 @@ if __name__ == '__main__':
             p = Process(target=produce_messages, args=(
                 {
                     'bootstrap.servers': args.broker_address,
-                    'acks': 'all',
+                    'acks': '1',
                     'batch.size': 16384,
                     'linger.ms': 5,
-                    'compression.type': 'lz4'
+                    'compression.type': 'none'
                 },
                 args.topic, args.messages_per_producer, args.log_interval, producer_metrics, i, args.message_size
             ))
