@@ -12,7 +12,7 @@
 #   ./stop_and_clean_all.sh
 
 # =============== 配置区域 ===============
-INSTANCES=("kafka-1" "kafka-2" "kafka-3")
+INSTANCES=("mq-1" "mq-2" "mq-3")
 ZONE="us-central1-c"  
 # 如果三台不在同一个 zone，需要改成数组或分别指定
 
