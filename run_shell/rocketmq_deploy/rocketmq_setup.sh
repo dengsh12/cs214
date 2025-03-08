@@ -1,6 +1,7 @@
 #!/bin/bash
 # rocketmq_setup.sh
 # 用途：在单台机器上安装 Java、下载 RocketMQ、配置并启动 NameServer 和 Broker。
+#       并在 broker.conf 中设置异步刷盘与较大线程池，确保对比更公平。
 #
 # 使用方法（在每台 VM 上分别运行）：
 #   sudo ./rocketmq_setup.sh <NODE_ID>
@@ -11,8 +12,7 @@
 # - 此脚本区分内部（私网）和外部（公网）IP：
 #     - NameServer 通信使用私网 IP（例如 10.128.0.x）。
 #     - Broker 对外公布时使用公网 IP（例如 35.x.x.x）。
-#
-# 请根据你环境实际情况修改下面的 IP 地址变量。
+# - 请根据你环境实际情况修改下面的 IP 地址变量。
 
 # 私网 IP（内部通信使用）
 PRIVATE_NODE1_IP="10.128.0.3"
@@ -90,30 +90,36 @@ fi
 # 配置 RocketMQ Broker
 BROKER_CONFIG="$ROCKETMQ_DIR/conf/broker.conf"
 mkdir -p "$ROCKETMQ_DIR/conf"
+
 cat > $BROKER_CONFIG <<EOF
 # RocketMQ Broker 配置文件
 
-# 指定 NameServer 地址，使用私网 IP 进行内部通信
+# NameServer 地址（私网 IP 用于内部通信）
 namesrvAddr=${PRIVATE_NODE1_IP}:9876;${PRIVATE_NODE2_IP}:9876;${PRIVATE_NODE3_IP}:9876
 
-# Broker 的集群名称
+# Broker 所属集群名称
 brokerClusterName=DefaultCluster
 
-# Broker 的名称（每个节点唯一）
+# Broker 名称（每台唯一）
 brokerName=broker-$NODE_ID
 
-# 固定为 0，表示 Master 节点
+# brokerId=0 表示 Master
 brokerId=0
 
-# Broker 对外公布的 IP 地址（公网）
+# Broker 对外公布的公网 IP
 brokerIP1=${THIS_PUBLIC_IP}
 
 # Broker 监听端口
 listenPort=10911
 
-# 存储路径配置
+# 数据存储路径
 storePathRootDir=\$HOME/rocketmq-data
 storePathCommitLog=\$HOME/rocketmq-data/commitlog
+
+# 以下为保证测试更公平，启用异步刷盘 & 较大线程池
+flushDiskType=ASYNC_FLUSH
+sendMessageThreadPoolNums=128
+putMessageThreadPoolNums=128
 EOF
 
 # 创建 RocketMQ 数据目录
@@ -121,14 +127,12 @@ mkdir -p $HOME/rocketmq-data
 
 # ================================
 # 为 JDK 17 下的反射访问问题添加必要参数
-# 不仅要加 --add-opens，若访问 jdk.internal.ref.Cleaner 则还要 --add-exports
 EXTRA_OPENS="--add-opens=java.base/java.nio=ALL-UNNAMED \
 --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
 --add-opens=java.base/java.lang=ALL-UNNAMED \
 --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
 --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
 
-# 把这些参数加到 JAVA_TOOL_OPTIONS，从而保证 mqnamesrv、mqbroker 都带上
 export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS $EXTRA_OPENS"
 
 # ================================

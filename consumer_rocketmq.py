@@ -1,7 +1,7 @@
 # consumer_rocketmq.py
 import time
 import utility
-from rocketmq.client import PushConsumer
+from rocketmq.client import PushConsumer, ConsumeStatus
 
 @utility.timer
 def consume_messages_rocketmq(consumer_conf, topic, log_interval,
@@ -15,8 +15,8 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
         - count_lock: manager.Lock() 保护global_count
         - global_stop: manager.Value(bool)，是否已消费完
         - total_messages: int，总消息数量
-    :param topic: 要消费的Topic
-    :param log_interval: int, 打印日志间隔
+    :param topic: 要消费的 Topic
+    :param log_interval: int, 日志打印间隔
     :param metrics_list: 用于存放指标数据
     :param process_id: 消费者编号
     """
@@ -39,12 +39,12 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
 
-    # 回调函数：每收到一条消息都会调用
-    def callback(msg):
+    # 定义回调函数，注意要先定义后订阅，避免因回调函数未定义而出现问题
+    def on_message(msg):
         nonlocal local_count
         if global_stop.value:
-            # 若全局标志已经是 True，说明够了，后续消息可直接忽略
-            return 0
+            # 若全局标志已置位，则后续消息直接忽略
+            return ConsumeStatus.CONSUME_SUCCESS
 
         current_time = time.time()
         try:
@@ -53,67 +53,61 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
             sent_ts = float(sent_str)
         except Exception as e:
             print(f"🔴 [RocketMQ]消费者[{process_id}]解码失败: {e}")
-            return 0
+            return ConsumeStatus.CONSUME_SUCCESS
 
+        # 计算延迟
         latency = current_time - sent_ts
         latencies.append(latency)
         if local_count < cold_start_count:
             cold_start_latencies.append(latency)
 
-        # 本地计数 + 1
         local_count += 1
-
-        # 打印本地计数日志
         if local_count % log_interval == 0:
             print(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
 
-        # 全局计数 + 1
+        # 全局计数加1，并检查是否达到预期总数
         with count_lock:
             global_count.value += 1
-            # 如果全局已满足 total_messages，就设置停止标志
             if global_count.value >= total_messages:
                 global_stop.value = True
 
-        return 0
+        return ConsumeStatus.CONSUME_SUCCESS
 
-    # 订阅 & 启动消费者
-    consumer.subscribe(topic, callback)
+    # 在定义好回调函数后，再调用 subscribe
+    consumer.subscribe(topic, callback=on_message, expression="*")
     consumer.start()
 
-    # 主循环：只要没到 global_stop 就一直 sleep
+    # 主循环：只要全局未达到总数就一直等待
     while True:
-        # 如果达到总量就退出
         if global_stop.value:
             break
         time.sleep(0.2)
 
-    # 关闭 consumer
     consumer.shutdown()
     end_time = time.time()
     duration = end_time - start_time
 
-    # 由于可能有多个消费者，实际消费到的条数 = local_count
-    # 吞吐量计算基于本地消费数
+    # 统计
     throughput = local_count / duration if duration > 0 else 0
-
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
     sorted_lat = sorted(latencies)
-    p99_latency = sorted_lat[int(len(sorted_lat) * 0.99) - 1] if len(sorted_lat) > 0 else 0
+    p99_latency = sorted_lat[int(len(sorted_lat) * 0.99) - 1] if sorted_lat else 0
     max_latency = max(latencies) if latencies else 0
-    cold_start_latency = sum(cold_start_latencies) / len(cold_start_latencies) if cold_start_latencies else 0
+    cold_start_latency = (sum(cold_start_latencies) / len(cold_start_latencies)
+                          if cold_start_latencies else 0)
 
-    metrics = {
-        "process_id": process_id,
-        "role": "consumer",
-        "messages": local_count,  # 实际消费到的数量
-        "duration": duration,
-        "throughput": throughput,
-        "avg_latency": avg_latency,
-        "p99_latency": p99_latency,
-        "max_latency": max_latency,
-        "cold_start_latency": cold_start_latency,
-    }
     if metrics_list is not None:
-        metrics_list.append(metrics)
+        metrics_list.append({
+            "process_id": process_id,
+            "role": "consumer",
+            "messages": local_count,
+            "duration": duration,
+            "throughput": throughput,
+            "avg_latency": avg_latency,
+            "p99_latency": p99_latency,
+            "max_latency": max_latency,
+            "cold_start_latency": cold_start_latency,
+        })
 
-    print(f"✅ [RocketMQ]消费者[{process_id}]结束, 共消费{local_count}条, 用时{duration:.2f}s, 吞吐量{throughput:.2f} msg/s")
+    print(f"✅ [RocketMQ]消费者[{process_id}]结束, 共消费 {local_count} 条, 用时 {duration:.2f} s, 吞吐量 {throughput:.2f} msg/s")
+    print(f"⏱️ consume_messages_rocketmq 执行耗时: {duration:.6f} 秒")

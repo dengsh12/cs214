@@ -1,59 +1,85 @@
-# producer_rocketmq.py
 import time
 import utility
 from rocketmq.client import Producer, Message
 
 @utility.timer
-def produce_messages_rocketmq(producer_conf, topic, num_messages, log_interval, metrics_list=None, process_id=0, message_size=100):
-    """
-    RocketMQ 生产者逻辑，和 Kafka 的 produce_messages 保持相同的函数签名 & 返回格式。
-    :param producer_conf: dict, 这里将包含 'namesrv_addr' 等 RocketMQ 配置信息
-    :param topic: str, RocketMQ 的 Topic 名称
-    :param num_messages: int, 发送的消息数量
-    :param log_interval: int, 日志打印间隔
-    :param metrics_list: 进程间共享的 metrics 列表
-    :param process_id: int, 生产者编号
-    :param message_size: int, 消息大小（字节）
-    """
+def produce_messages_rocketmq(
+    producer_conf,
+    topic,
+    num_messages,
+    log_interval,
+    metrics_list=None,
+    process_id=0,
+    message_size=100
+):
+    # 资源监控
     samples, stop_event, monitor_thread = utility.resource_monitor()
     start_time = time.time()
 
-    # 初始化 RocketMQ Producer
+    # 初始化 Producer
     namesrv_addr = producer_conf.get("namesrv_addr", "localhost:9876")
     group_id = producer_conf.get("producer_group", f"PID_TEST_{process_id}")
     producer = Producer(group_id)
     producer.set_name_server_address(namesrv_addr)
     producer.start()
 
+    # 类似 "batch.size" + "linger.ms"
+    BATCH_SIZE_BYTES = 16384
+    BATCH_COUNT_MAX  = 100
+    LINGER_MS        = 5
+
+    batch_buffer = []
+    batch_size_acc = 0
+    last_flush_ts = time.time()
+
+    def flush_batch():
+        nonlocal batch_buffer, batch_size_acc, last_flush_ts
+        if not batch_buffer:
+            return
+        # 由于 Python 客户端不支持一次性发送 list，这里循环逐条发送
+        for msg in batch_buffer:
+            while True:
+                try:
+                    producer.send_sync(msg)
+                    break
+                except Exception as e:
+                    print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}, 重试中...")
+                    time.sleep(1)
+
+        batch_buffer.clear()
+        batch_size_acc = 0
+        last_flush_ts = time.time()
+
     for i in range(num_messages):
         if i % log_interval == 0:
             print(f"🚀 [RocketMQ]生产者[{process_id}]发送消息: {i}/{num_messages}")
+
         timestamp = time.time()
         ts_str = str(timestamp)
-        separator = "|"
-        if message_size > len(ts_str) + len(separator):
-            padding_len = message_size - len(ts_str) - len(separator)
-            padding = "0" * padding_len
-            payload = ts_str + separator + padding
+        sep = "|"
+        if message_size > len(ts_str) + len(sep):
+            padding_len = message_size - len(ts_str) - len(sep)
+            payload = ts_str + sep + ("0" * padding_len)
         else:
             payload = ts_str
 
         msg = Message(topic)
-        # key 相当于 kafka 中的 message key
         msg.set_keys(f"{process_id}-{i}")
         msg.set_body(payload)
 
-        # 同步发送
-        while True:
-            try:
-                producer.send_sync(msg)
-                break
-            except Exception as e:
-                # 可能出现超时或连接池满等情况，稍等后重试
-                print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}, 重试中...")
-                time.sleep(1)
+        batch_buffer.append(msg)
+        batch_size_acc += len(payload)
 
-    # 关闭 producer
+        now = time.time()
+        if (
+            batch_size_acc >= BATCH_SIZE_BYTES
+            or len(batch_buffer) >= BATCH_COUNT_MAX
+            or (now - last_flush_ts) * 1000 >= LINGER_MS
+        ):
+            flush_batch()
+
+    flush_batch()
+
     producer.shutdown()
     end_time = time.time()
     duration = end_time - start_time
@@ -71,4 +97,7 @@ def produce_messages_rocketmq(producer_conf, topic, num_messages, log_interval, 
     }
     if metrics_list is not None:
         metrics_list.append(metrics)
-    print(f"✅ [RocketMQ]生产者[{process_id}]完成消息发送, 耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s")
+    print(
+        f"✅ [RocketMQ]生产者[{process_id}]批量发送完成, "
+        f"耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s"
+    )

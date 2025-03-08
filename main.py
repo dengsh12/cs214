@@ -1,4 +1,3 @@
-# main.py
 import time
 from multiprocessing import Process, Manager
 import argparse
@@ -120,6 +119,7 @@ if __name__ == '__main__':
 
         baseline_metrics = start_remote_monitoring(remote_ips)
 
+        from multiprocessing import Manager
         manager = Manager()
         producer_metrics = manager.list()
         consumer_metrics = manager.list()
@@ -162,20 +162,18 @@ if __name__ == '__main__':
         # -- RocketMQ 测试 --
         namesrv_addr = args.broker_address
         delete_topic_rocketmq(args.topic, namesrv_addr)
-        # 分配队列数为 num_consumers 或随意
+        # 分配队列数为 num_consumers 或自己设一个值
         create_topic_rocketmq(args.topic, namesrv_addr, num_queues=args.num_consumers)
 
         baseline_metrics = start_remote_monitoring(remote_ips)
 
+        from multiprocessing import Manager
         manager = Manager()
         producer_metrics = manager.list()
         consumer_metrics = manager.list()
         processes = []
 
         # (A) 在此处创建"总量"相关的共享变量
-        #     global_count: 当前已消费的总条数
-        #     count_lock  : 保护 global_count 的并发锁
-        #     global_stop : 是否达到总数标志
         global_count = manager.Value('i', 0)      # 整型
         count_lock  = manager.Lock()             # 并发锁
         global_stop = manager.Value('b', False)  # 布尔
@@ -186,13 +184,12 @@ if __name__ == '__main__':
                 {
                     "namesrv_addr": namesrv_addr,
                     "consumer_group": "latency-test-group",
-                    # 额外传入共享变量 & 本次测试要消费的"总消息数"
                     "global_count": global_count,
                     "count_lock": count_lock,
                     "global_stop": global_stop,
                     "total_messages": total_messages
                 },
-                args.topic,  # 不再用 num_messages 做退出标准
+                args.topic,
                 args.log_interval,
                 consumer_metrics,
                 i
@@ -264,12 +261,16 @@ if __name__ == '__main__':
     # ---- 统计生产者、消费者metrics ----
     total_messages_produced = sum(item["messages"] for item in producer_metrics)
     max_producer_duration = max(item["duration"] for item in producer_metrics) if producer_metrics else 1
-    overall_throughput_producers = total_messages_produced / max_producer_duration
+    overall_throughput_producers = total_messages_produced / max_producer_duration if max_producer_duration > 0 else 0
 
-    avg_consumer_throughput = sum(item["throughput"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
-    avg_latency = sum(item["avg_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
-    avg_p99_latency = sum(item["p99_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
-    avg_cold_start = sum(item["cold_start_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
+    avg_consumer_throughput = (sum(item["throughput"] for item in consumer_metrics) / len(consumer_metrics)
+                               if consumer_metrics else 0)
+    avg_latency = (sum(item["avg_latency"] for item in consumer_metrics) / len(consumer_metrics)
+                   if consumer_metrics else 0)
+    avg_p99_latency = (sum(item["p99_latency"] for item in consumer_metrics) / len(consumer_metrics)
+                       if consumer_metrics else 0)
+    avg_cold_start = (sum(item["cold_start_latency"] for item in consumer_metrics) / len(consumer_metrics)
+                      if consumer_metrics else 0)
 
     print("\n===== 综合测试结果 =====")
     print(f"生产者: 总发送消息数: {total_messages_produced}, 平均吞吐量: {overall_throughput_producers:.2f} msg/s")
@@ -306,7 +307,10 @@ if __name__ == '__main__':
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    filename = os.path.join(results_dir, f"{args.num_consumers}consumer{args.num_producers}producer{args.messages_per_producer//1000}kmessages_{timestamp}.json")
+    filename = os.path.join(
+        results_dir,
+        f"{args.num_consumers}consumer{args.num_producers}producer{args.messages_per_producer//1000}kmessages_{timestamp}.json"
+    )
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(results_summary, f, indent=4, ensure_ascii=False)
     print(f"\n结果已保存至 {filename}")

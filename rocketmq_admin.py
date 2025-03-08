@@ -1,12 +1,10 @@
-# rocketmq_admin.py
 import os
 import subprocess
 
-# 修改为你本地真实的 mqadmin 路径
+# 修改为你本地实际路径
 MQADMIN_PATH = "/home/songh00/rocketmq_temp/rocketmq-all-4.9.8-bin-release/bin/mqadmin"
 JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
 
-# 如果需要为 JDK17 添加 opens 等参数，请放到这里
 JVM_OPTS = (
     "--add-opens=java.base/java.nio=ALL-UNNAMED "
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
@@ -17,18 +15,15 @@ JVM_OPTS = (
 
 def run_mqadmin_command(cmd_list):
     env = os.environ.copy()
+    # 强行设置 JAVA_HOME，避免脚本报错
     env['JAVA_HOME'] = JAVA_HOME
     existing_opts = env.get('JAVA_TOOL_OPTIONS', '')
     if JVM_OPTS not in existing_opts:
         env['JAVA_TOOL_OPTIONS'] = (existing_opts + " " + JVM_OPTS).strip()
+    # 调用
     subprocess.check_call(cmd_list, env=env)
 
 def delete_topic_rocketmq(topic_name, namesrv_addr):
-    """
-    删除 RocketMQ Topic
-    :param topic_name: 待删除的 Topic
-    :param namesrv_addr: "ip1:9876;ip2:9876;ip3:9876"
-    """
     print(f"尝试删除RocketMQ Topic: {topic_name}")
     cmd = [
         MQADMIN_PATH,
@@ -44,12 +39,6 @@ def delete_topic_rocketmq(topic_name, namesrv_addr):
         print(f"⚠️ RocketMQ Topic {topic_name} 删除失败或不存在: {e}")
 
 def create_topic_rocketmq(topic_name, namesrv_addr, num_queues=8):
-    """
-    创建 RocketMQ Topic
-    :param topic_name: Topic 名称
-    :param namesrv_addr: "ip1:9876;ip2:9876;ip3:9876"
-    :param num_queues: 创建时的读写队列数
-    """
     print(f"🚀 创建 RocketMQ Topic: {topic_name}, queues={num_queues}")
     cmd = [
         MQADMIN_PATH,
@@ -57,9 +46,9 @@ def create_topic_rocketmq(topic_name, namesrv_addr, num_queues=8):
         "-n", namesrv_addr,
         "-c", "DefaultCluster",
         "-t", topic_name,
-        "-w", str(num_queues),  # 写队列数
-        "-r", str(num_queues),  # 读队列数
-        "-p", "6"               # 读写权限(2=写,4=读,6=读写)
+        "-w", str(num_queues),
+        "-r", str(num_queues),
+        "-p", "6"
     ]
     try:
         run_mqadmin_command(cmd)
