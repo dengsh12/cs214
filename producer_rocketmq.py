@@ -23,29 +23,6 @@ def produce_messages_rocketmq(
     producer.set_name_server_address(namesrv_addr)
     producer.start()
 
-    # 类似 "batch.size" + "linger.ms"
-    BATCH_SIZE_BYTES = 16384
-    BATCH_COUNT_MAX  = 100
-    LINGER_MS        = 5
-
-    batch_buffer = []
-    batch_size_acc = 0
-    last_flush_ts = time.time()
-
-    def flush_batch():
-        nonlocal batch_buffer, batch_size_acc, last_flush_ts
-        if not batch_buffer:
-            return
-        for msg in batch_buffer:
-            try:
-                # 不再做 while True 无限重试
-                producer.send_sync(msg)
-            except Exception as e:
-                print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}")
-        batch_buffer.clear()
-        batch_size_acc = 0
-        last_flush_ts = time.time()
-
     for i in range(num_messages):
         if i % log_interval == 0:
             print(f"🚀 [RocketMQ]生产者[{process_id}]发送消息: {i}/{num_messages}")
@@ -63,19 +40,10 @@ def produce_messages_rocketmq(
         msg.set_keys(f"{process_id}-{i}")
         msg.set_body(payload)
 
-        batch_buffer.append(msg)
-        batch_size_acc += len(payload)
-
-        now = time.time()
-        if (
-            batch_size_acc >= BATCH_SIZE_BYTES
-            or len(batch_buffer) >= BATCH_COUNT_MAX
-            or (now - last_flush_ts) * 1000 >= LINGER_MS
-        ):
-            flush_batch()
-
-    # 发送剩余批次
-    flush_batch()
+        try:
+            producer.send_sync(msg)
+        except Exception as e:
+            print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}")
 
     producer.shutdown()
     end_time = time.time()
@@ -95,6 +63,6 @@ def produce_messages_rocketmq(
     if metrics_list is not None:
         metrics_list.append(metrics)
     print(
-        f"✅ [RocketMQ]生产者[{process_id}]批量发送完成, "
+        f"✅ [RocketMQ]生产者[{process_id}]发送完成, "
         f"耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s"
     )

@@ -25,7 +25,7 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     cold_start_count = 50
     local_count = 0  # 当前消费者自己消费的消息数
     local_lock = threading.Lock()  # 保护local_count和列表的锁
-
+    last_message_time = time.time()
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
 
@@ -34,8 +34,10 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
         if global_stop.value:
             return ConsumeStatus.CONSUME_SUCCESS
 
+        nonlocal last_message_time
+
         nonlocal local_count
-        current_time = time.time()
+        last_message_time = current_time = time.time()
         try:
             body_str = msg.body.decode('utf-8')
             sent_str = body_str.split('|')[0]
@@ -70,6 +72,9 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
 
     # 主循环：只要未全局停止就一直等
     while not global_stop.value:
+        if time.time() - last_message_time > 5:
+            print(f"⏰ [RocketMQ]消费者[{process_id}]超时：连续5秒未收到消息，退出等待")
+            break
         time.sleep(0.2)
 
     consumer.shutdown()

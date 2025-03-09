@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 {
                     'bootstrap.servers': args.broker_address,
                     'acks': '1',
-                    'batch.size': 16384,
+                    'batch.size': 1,
                     'linger.ms': 5,
                     'compression.type': 'none'
                 },
@@ -299,6 +299,8 @@ if __name__ == '__main__':
             "consumer_avg_latency": avg_latency,
             "consumer_p99_latency": avg_p99_latency,
             "consumer_cold_start_latency": avg_cold_start,
+            "remote_avg_cpu": avg_cpu_all,
+            "remote_avg_mem_mb": avg_mem_all,
             "remote_servers": processed_remote
         }
     }
