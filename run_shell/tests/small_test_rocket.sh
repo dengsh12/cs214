@@ -7,9 +7,9 @@ python main.py \
     --mq_type rocketmq \
     --broker_address "35.209.251.221:9876;35.239.56.104:9876;35.208.205.25:9876" \
     --topic test-throughput_scaling_rocketmq \
-    --num_producers 5 \
+    --num_producers 10 \
     --num_consumers 5 \
-    --messages_per_producer 450 \
+    --messages_per_producer 1000 \
     --log_interval 100 \
     --message_size 100 \
     --remote_ips "35.209.251.221,35.239.56.104,35.208.205.25"

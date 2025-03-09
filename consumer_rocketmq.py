@@ -1,4 +1,5 @@
 import time
+import threading
 import utility
 from rocketmq.client import PushConsumer, ConsumeStatus
 
@@ -6,7 +7,7 @@ from rocketmq.client import PushConsumer, ConsumeStatus
 def consume_messages_rocketmq(consumer_conf, topic, log_interval,
                               metrics_list=None, process_id=0):
     """
-    使用“全局总量”退出的 RocketMQ 消费者示例。
+    使用“全局总量”退出的 RocketMQ 消费者示例（线程安全版本）。
     """
     start_time = time.time()
 
@@ -18,11 +19,12 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     global_stop = consumer_conf["global_stop"]
     total_messages = consumer_conf["total_messages"]
 
-    # 用于本地统计
+    # 用于本地统计（需要线程安全）
     latencies = []
     cold_start_latencies = []
     cold_start_count = 50
     local_count = 0  # 当前消费者自己消费的消息数
+    local_lock = threading.Lock()  # 保护local_count和列表的锁
 
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
@@ -44,45 +46,45 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
 
         # 计算延迟
         latency = current_time - sent_ts
+
+        # 使用本地锁保护局部统计数据
         latencies.append(latency)
         if local_count < cold_start_count:
             cold_start_latencies.append(latency)
-
         local_count += 1
         if local_count % log_interval == 0:
             print(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
 
         # 全局计数 + 判断是否到达停止条件
-        with count_lock:
-            if global_count.value < total_messages:
-                global_count.value += 1
-                if global_count.value >= total_messages:
-                    global_stop.value = True
+        if global_count.value < total_messages:
+            global_count.value += 1
+            if global_count.value >= total_messages:
+                global_stop.value = True
 
         return ConsumeStatus.CONSUME_SUCCESS
 
     # 订阅主题
     consumer.subscribe(topic, callback=on_message, expression="*")
+    consumer.set_thread_count(1)
     consumer.start()
 
     # 主循环：只要未全局停止就一直等
-    while True:
-        if global_stop.value:
-            break
+    while not global_stop.value:
         time.sleep(0.2)
 
     consumer.shutdown()
     end_time = time.time()
     duration = end_time - start_time
 
-    # 统计
-    throughput = local_count / duration if duration > 0 else 0
-    avg_latency = sum(latencies) / len(latencies) if latencies else 0
-    sorted_lat = sorted(latencies)
-    p99_latency = sorted_lat[int(len(sorted_lat) * 0.99) - 1] if sorted_lat else 0
-    max_latency = max(latencies) if latencies else 0
-    cold_start_latency = (sum(cold_start_latencies) / len(cold_start_latencies)
-                          if cold_start_latencies else 0)
+    # 统计数据（读取时也建议加锁，虽然程序已结束消息处理线程，但这里使用local_lock确保数据完整性）
+    with local_lock:
+        throughput = local_count / duration if duration > 0 else 0
+        avg_latency = sum(latencies) / len(latencies) if latencies else 0
+        sorted_lat = sorted(latencies)
+        p99_latency = sorted_lat[int(len(sorted_lat) * 0.99) - 1] if sorted_lat else 0
+        max_latency = max(latencies) if latencies else 0
+        cold_start_latency = (sum(cold_start_latencies) / len(cold_start_latencies)
+                              if cold_start_latencies else 0)
 
     if metrics_list is not None:
         metrics_list.append({

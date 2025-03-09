@@ -64,7 +64,7 @@ def start_remote_monitoring(remote_ips):
     for ip in remote_ips:
         url = f"http://{ip}:5000/start_monitor"
         try:
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=15)
             data = resp.json()
             baseline_data[ip] = data
             print(f"远程监控启动[{ip}]: {data}")
@@ -78,7 +78,7 @@ def stop_remote_monitoring(remote_ips):
     for ip in remote_ips:
         url = f"http://{ip}:5000/stop_monitor"
         try:
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=15)
             data = resp.json()
             data["ip"] = ip
             results.append(data)
