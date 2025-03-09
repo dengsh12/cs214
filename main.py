@@ -62,7 +62,7 @@ def start_remote_monitoring(remote_ips):
     for ip in remote_ips:
         url = f"http://{ip}:5000/start_monitor"
         try:
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=15)
             data = resp.json()
             baseline_data[ip] = data
             print(f"远程监控启动[{ip}]: {data}")
@@ -88,6 +88,41 @@ def stop_remote_monitoring(remote_ips):
         except Exception as e:
             print(f"停止远程监控[{ip}]失败: {e}")
     return results
+
+def merge_time_dict(merged_t2latencies, threshold=0.1):
+    # 对时间戳进行排序
+    print('len(merged_t2latencies)', len(merged_t2latencies), flush=True)
+    sorted_times = sorted(merged_t2latencies.keys())
+    print('sort finished', flush=True)
+    new_dict = {}
+    
+    if not sorted_times:
+        return new_dict
+
+    # 初始化第一个分组，使用第一个时间戳作为代表
+    group_start = sorted_times[0]
+    group_latency, group_count = merged_t2latencies[group_start]
+    
+    # 遍历剩下的时间戳
+    for t in sorted_times[1:]:
+        # 如果当前时间与组起始时间差不超过阈值，则合并
+        if t - group_start <= threshold:
+            latency, count = merged_t2latencies[t]
+            total_count = group_count + count
+            # 按权重计算新的延迟
+            group_latency = (group_latency * group_count + latency * count) / total_count
+            group_count = total_count
+        else:
+            # 将当前组保存到新字典中
+            new_dict[group_start] = (group_latency, group_count)
+            # 重新开始一个新分组
+            group_start = t
+            group_latency, group_count = merged_t2latencies[t]
+    
+    # 保存最后一个分组
+    new_dict[group_start] = (group_latency, group_count)
+    
+    return new_dict
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="MQ 吞吐量与延迟测试")
@@ -197,7 +232,14 @@ if __name__ == '__main__':
     avg_latency = sum(item["avg_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
     avg_p99_latency = sum(item["p99_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
     avg_cold_start = sum(item["cold_start_latency"] for item in consumer_metrics) / len(consumer_metrics) if consumer_metrics else 0
-
+    merged_t2latencies = {}
+    for item in consumer_metrics:
+        for t, latency in item["t2latencies"].items():
+            if t in merged_t2latencies.keys():
+                merged_t2latencies[t] = (merged_t2latencies[t][0] + latency[0], merged_t2latencies[t][1] + latency[1])
+            else:
+                merged_t2latencies[t] = latency
+    merged_t2latencies = merge_time_dict(merged_t2latencies)
     print("\n===== 综合测试结果 =====")
     print(f"生产者: 总发送消息数: {total_messages_produced}, 平均吞吐量: {overall_throughput_producers:.2f} msg/s")
     print("消费者:")
@@ -228,7 +270,8 @@ if __name__ == '__main__':
             "consumer_cold_start_latency": avg_cold_start,
             "remote_servers": processed_remote,
             "remote_avg_cpu": round(avg_cpu_all, 4),
-            "remote_avg_mem_mb": round(avg_mem_all, 2)
+            "remote_avg_mem_mb": round(avg_mem_all, 2),
+            "merged_t2latencies": merged_t2latencies
         }
     }
     results_dir = os.path.join("results", args.mq_type)

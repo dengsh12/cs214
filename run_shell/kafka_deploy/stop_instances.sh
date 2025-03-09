@@ -4,7 +4,7 @@
 # 一键关闭 (stop) GCP 上的三台 Kafka 虚机
 #
 
-INSTANCES=("kafka-1" "kafka-2" "kafka-3")
+INSTANCES=("mq-1" "mq-2" "mq-3")
 ZONE="us-central1-c"
 
 for INSTANCE in "${INSTANCES[@]}"; do

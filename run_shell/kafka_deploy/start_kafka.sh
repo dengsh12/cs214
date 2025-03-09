@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # 需要检查的实例名称列表（与实际名称对应）
-INSTANCES=("kafka-1" "kafka-2" "kafka-3")
+INSTANCES=("mq-1" "mq-2" "mq-3")
 # 所在的 Zone，如果这三个实例不在同一个 zone，需要分别指定
 ZONE="us-central1-c"
 

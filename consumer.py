@@ -22,6 +22,7 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
     cold_start_count = 50  # 定义前50条消息作为冷启动计算
     count = 0
     start_time = time.time()
+    t2latencies = {}
 
     while count < num_messages:
         if count % log_interval == 0:
@@ -42,6 +43,12 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
             continue
         latency = current_time - sent_time
         latencies.append(latency)
+        if current_time in t2latencies.keys():
+            t2latencies[current_time] = ((t2latencies[current_time][0] * t2latencies[current_time][1] + latency) / (t2latencies[current_time][1] + 1),
+                                          t2latencies[current_time][1] + 1)
+        else:
+            t2latencies[current_time] = (latency, 1)
+        
         if count < cold_start_count:
             cold_start_latencies.append(latency)
         count += 1
@@ -66,6 +73,7 @@ def consume_messages(consumer_conf, topic, num_messages, log_interval, metrics_l
         "p99_latency": p99_latency,
         "max_latency": max_latency,
         "cold_start_latency": cold_start_latency,
+        "t2latencies": t2latencies,
     }
     if metrics_list is not None:
         metrics_list.append(metrics)

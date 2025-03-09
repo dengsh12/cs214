@@ -2,8 +2,8 @@
 # test_scaling.sh
 # 依次测试不同消费者数量和不同消息数量下的性能指标
 
-for consumers in 5 10 20 30 40; do
-    for messages in 50000 1000000 5000000; do
+for consumers in 5 10 20 40; do
+    for messages in 50000 2000000; do
         echo "----- 测试消费者数量: $consumers, 每个生产者消息数: $messages -----"
         python main.py \
             --mq_type kafka \
