@@ -1,6 +1,7 @@
 import time
 import utility
 from rocketmq.client import Producer, Message
+from utility import logPrint
 
 @utility.timer
 def produce_messages_rocketmq(
@@ -12,6 +13,7 @@ def produce_messages_rocketmq(
     process_id=0,
     message_size=100
 ):
+    logPrint(f"produce_messages_rocketmq {process_id} called")
     # 资源监控
     samples, stop_event, monitor_thread = utility.resource_monitor()
     start_time = time.time()
@@ -21,18 +23,28 @@ def produce_messages_rocketmq(
     group_id = producer_conf.get("producer_group", f"PID_TEST_{process_id}")
     producer = Producer(group_id)
     producer.set_name_server_address(namesrv_addr)
+    logPrint(f"before {process_id} producer.start")
     producer.start()
+    logPrint("producer.started")
+
+    # 把消息创建、字符串复制拿到外面
+    sep = "|"
+    timestamp = time.time()
+    ts_str = str(timestamp)
+    padding_len = message_size - len(ts_str) - len(sep)
+    if padding_len>0:
+        padding_str = ("0" * padding_len)
+    else:
+        padding_str = ""
 
     for i in range(num_messages):
         if i % log_interval == 0:
-            print(f"🚀 [RocketMQ]生产者[{process_id}]发送消息: {i}/{num_messages}")
+            logPrint(f"🚀 [RocketMQ]生产者[{process_id}]发送消息: {i}/{num_messages}")
 
         timestamp = time.time()
         ts_str = str(timestamp)
-        sep = "|"
         if message_size > len(ts_str) + len(sep):
-            padding_len = message_size - len(ts_str) - len(sep)
-            payload = ts_str + sep + ("0" * padding_len)
+            payload = ts_str + sep + padding_str
         else:
             payload = ts_str
 
@@ -43,7 +55,7 @@ def produce_messages_rocketmq(
         try:
             producer.send_sync(msg)
         except Exception as e:
-            print(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}")
+            logPrint(f"🚀 [RocketMQ]生产者[{process_id}]发送异常: {e}")
 
     producer.shutdown()
     end_time = time.time()
@@ -62,7 +74,7 @@ def produce_messages_rocketmq(
     }
     if metrics_list is not None:
         metrics_list.append(metrics)
-    print(
+    logPrint(
         f"✅ [RocketMQ]生产者[{process_id}]发送完成, "
         f"耗时: {duration:.6f} 秒, 吞吐量: {throughput:.2f} msg/s"
     )

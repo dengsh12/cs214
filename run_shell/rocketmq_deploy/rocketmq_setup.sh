@@ -85,8 +85,8 @@ brokerName=broker-$NODE_ID
 brokerId=0
 brokerIP1=${THIS_PUBLIC_IP}
 listenPort=10911
-storePathRootDir=\$HOME/rocketmq-data
-storePathCommitLog=\$HOME/rocketmq-data/commitlog
+storePathRootDir=$HOME/rocketmq-data
+storePathCommitLog=$HOME/rocketmq-data/commitlog
 
 # 使用异步刷盘
 flushDiskType=ASYNC_FLUSH

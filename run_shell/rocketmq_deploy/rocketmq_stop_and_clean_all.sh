@@ -52,6 +52,10 @@ for INSTANCE in "${INSTANCES[@]}"; do
       rm -f \$HOME/rocketmq_broker.log || true;
       echo \"数据目录及日志已清理完毕。\";
       echo \"完成。\"
+      # 停止 NameServer (如果存在)
+      if [ -f bin/mqshutdown ]; then
+        sh bin/mqshutdown namesrv;
+      fi
     '"
 
     echo "[$INSTANCE] 已执行停止+清理操作。"

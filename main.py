@@ -16,47 +16,48 @@ from consumer_rocketmq import consume_messages_rocketmq
 from rocketmq_admin import create_topic_rocketmq, delete_topic_rocketmq
 
 import utility
+from utility import logPrint
 
 def delete_topic_kafka(admin_client, topic_name):
     """删除 Kafka 主题"""
-    print(f"尝试删除 Topic: {topic_name}")
+    logPrint(f"尝试删除 Topic: {topic_name}")
     topic_metadata = admin_client.list_topics(timeout=10)
     if topic_name not in topic_metadata.topics:
-        print(f"Topic {topic_name} 不存在，跳过删除")
+        logPrint(f"Topic {topic_name} 不存在，跳过删除")
         return
     fs = admin_client.delete_topics([topic_name], operation_timeout=30)
     for topic, f in fs.items():
         try:
-            print(f"等待 Topic {topic} 删除")
+            logPrint(f"等待 Topic {topic} 删除")
             f.result()
-            print(f"✅ Topic {topic} 删除成功")
+            logPrint(f"✅ Topic {topic} 删除成功")
         except Exception as e:
-            print(f"⚠️ Topic {topic} 删除失败: {e}")
-    print()
+            logPrint(f"⚠️ Topic {topic} 删除失败: {e}")
+    logPrint()
     while True:
         topic_metadata = admin_client.list_topics(timeout=10)
         if topic_name not in topic_metadata.topics:
             break
-        print(f"⚠️ Topic {topic_name} 仍在删除中，等待...")
+        logPrint(f"⚠️ Topic {topic_name} 仍在删除中，等待...")
     time.sleep(5)
 
 def create_topic_kafka(admin_client, topic_name, num_partitions=3, replication_factor=1):
     """创建 Kafka 主题"""
     topic_metadata = admin_client.list_topics(timeout=10)
     if topic_name in topic_metadata.topics:
-        print(f"⚠️ Topic {topic_name} 已存在，跳过创建")
+        logPrint(f"⚠️ Topic {topic_name} 已存在，跳过创建")
         return
 
-    print(f"🚀 创建 Topic: {topic_name}")
+    logPrint(f"🚀 创建 Topic: {topic_name}")
     topic_list = [NewTopic(topic_name, num_partitions=num_partitions, replication_factor=replication_factor)]
     fs = admin_client.create_topics(topic_list, operation_timeout=30)
     for t, f in fs.items():
         try:
             f.result()
-            print(f"✅ Topic {t} 创建成功")
+            logPrint(f"✅ Topic {t} 创建成功")
         except Exception as e:
-            print(f"⚠️ Topic {t} 创建失败: {e}")
-    print()
+            logPrint(f"⚠️ Topic {t} 创建失败: {e}")
+    logPrint()
 
 def start_remote_monitoring(remote_ips):
     """对每个服务器调用 /start_monitor 接口，用于采集资源信息"""
@@ -67,9 +68,9 @@ def start_remote_monitoring(remote_ips):
             resp = requests.get(url, timeout=15)
             data = resp.json()
             baseline_data[ip] = data
-            print(f"远程监控启动[{ip}]: {data}")
+            logPrint(f"远程监控启动[{ip}]: {data}")
         except Exception as e:
-            print(f"启动远程监控[{ip}]失败: {e}")
+            logPrint(f"启动远程监控[{ip}]失败: {e}")
     return baseline_data
 
 def stop_remote_monitoring(remote_ips):
@@ -82,27 +83,28 @@ def stop_remote_monitoring(remote_ips):
             data = resp.json()
             data["ip"] = ip
             results.append(data)
-            print(f"远程监控停止[{ip}]: {data}")
+            logPrint(f"远程监控停止[{ip}]: {data}")
         except Exception as e:
-            print(f"停止远程监控[{ip}]失败: {e}")
+            logPrint(f"停止远程监控[{ip}]失败: {e}")
     return results
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="MQ 吞吐量与延迟测试")
-    parser.add_argument("--mq_type", type=str, default="kafka", help="消息队列类型, kafka 或 rocketmq")
-    parser.add_argument("--broker_address", type=str, default="localhost:9092", help="Kafka: host:port; RocketMQ: 'ip1:9876;ip2:9876'")
-    parser.add_argument("--topic", type=str, default="test-throughput", help="测试 Topic 名称")
-    parser.add_argument("--num_producers", type=int, default=50, help="生产者数量")
-    parser.add_argument("--num_consumers", type=int, default=50, help="消费者数量")
-    parser.add_argument("--messages_per_producer", type=int, default=1000, help="每个生产者发送的消息数量")
-    parser.add_argument("--log_interval", type=int, default=100, help="日志打印间隔")
-    parser.add_argument("--remote_ips", type=str, default="", help="服务器IP列表，用于远程资源监控，逗号分隔")
-    parser.add_argument("--message_size", type=int, default=100, help="消息大小（字节）")
-    args = parser.parse_args()
+    if True:
+        parser = argparse.ArgumentParser(description="MQ 吞吐量与延迟测试")
+        parser.add_argument("--mq_type", type=str, default="kafka", help="消息队列类型, kafka 或 rocketmq")
+        parser.add_argument("--broker_address", type=str, default="localhost:9092", help="Kafka: host:port; RocketMQ: 'ip1:9876;ip2:9876'")
+        parser.add_argument("--topic", type=str, default="test-throughput", help="测试 Topic 名称")
+        parser.add_argument("--num_producers", type=int, default=50, help="生产者数量")
+        parser.add_argument("--num_consumers", type=int, default=50, help="消费者数量")
+        parser.add_argument("--messages_per_producer", type=int, default=1000, help="每个生产者发送的消息数量")
+        parser.add_argument("--log_interval", type=int, default=100, help="日志打印间隔")
+        parser.add_argument("--remote_ips", type=str, default="", help="服务器IP列表，用于远程资源监控，逗号分隔")
+        parser.add_argument("--message_size", type=int, default=100, help="消息大小（字节）")
+        args = parser.parse_args()
 
     remote_ips = [ip.strip() for ip in args.remote_ips.split(",") if ip.strip()]
     if not remote_ips:
-        print("请指定服务器IP列表（--remote_ips），用于采集资源指标")
+        logPrint("请指定服务器IP列表（--remote_ips），用于采集资源指标")
         exit(1)
 
     # 总消息量
@@ -199,6 +201,7 @@ if __name__ == '__main__':
 
         # 启动生产者进程
         for i in range(args.num_producers):
+            logPrint("producer create")
             p = Process(target=produce_messages_rocketmq, args=(
                 {
                     "namesrv_addr": namesrv_addr,
@@ -211,7 +214,9 @@ if __name__ == '__main__':
                 i,
                 args.message_size
             ))
+            logPrint("producer createdddddddd")
             p.start()
+            logPrint("producer startedddddd")
             processes.append(p)
 
         for p in processes:
@@ -220,7 +225,7 @@ if __name__ == '__main__':
         remote_results = stop_remote_monitoring(remote_ips)
 
     else:
-        print("目前仅支持 --mq_type=kafka 或 --mq_type=rocketmq")
+        logPrint("目前仅支持 --mq_type=kafka 或 --mq_type=rocketmq")
         exit(1)
 
     # ============ 统一的资源增量计算 & 结果汇总部分 ============
@@ -249,14 +254,14 @@ if __name__ == '__main__':
             for item in remote_results
         ) / len(remote_results) / (1024*1024)
 
-        print("\n===== 服务器资源使用情况 =====")
-        print(f"三个服务器平均 CPU 增量: {avg_cpu_all:.4f}")
-        print(f"三个服务器平均 内存增量: {avg_mem_all:.2f} MB")
+        logPrint("\n===== 服务器资源使用情况 =====")
+        logPrint(f"三个服务器平均 CPU 增量: {avg_cpu_all:.4f}")
+        logPrint(f"三个服务器平均 内存增量: {avg_mem_all:.2f} MB")
         for item in processed_remote:
-            print(f"服务器 {item['ip']}： CPU 增量: {item['avg_cpu']:.4f}, "
+            logPrint(f"服务器 {item['ip']}： CPU 增量: {item['avg_cpu']:.4f}, "
                   f"内存增量: {item['avg_mem_mb']:.2f} MB (采样 {item['samples_count']} 次)")
     else:
-        print("未获取到远程资源数据。")
+        logPrint("未获取到远程资源数据。")
 
     # ---- 统计生产者、消费者metrics ----
     total_messages_produced = sum(item["messages"] for item in producer_metrics)
@@ -272,13 +277,13 @@ if __name__ == '__main__':
     avg_cold_start = (sum(item["cold_start_latency"] for item in consumer_metrics) / len(consumer_metrics)
                       if consumer_metrics else 0)
 
-    print("\n===== 综合测试结果 =====")
-    print(f"生产者: 总发送消息数: {total_messages_produced}, 平均吞吐量: {overall_throughput_producers:.2f} msg/s")
-    print("消费者:")
-    print(f"  平均延迟: {avg_latency:.6f} s")
-    print(f"  近似99%延迟: {avg_p99_latency:.6f} s")
-    print(f"  平均冷启动延迟: {avg_cold_start:.6f} s")
-    print(f"  平均吞吐量: {avg_consumer_throughput:.2f} msg/s")
+    logPrint("\n===== 综合测试结果 =====")
+    logPrint(f"生产者: 总发送消息数: {total_messages_produced}, 平均吞吐量: {overall_throughput_producers:.2f} msg/s")
+    logPrint("消费者:")
+    logPrint(f"  平均延迟: {avg_latency:.6f} s")
+    logPrint(f"  近似99%延迟: {avg_p99_latency:.6f} s")
+    logPrint(f"  平均冷启动延迟: {avg_cold_start:.6f} s")
+    logPrint(f"  平均吞吐量: {avg_consumer_throughput:.2f} msg/s")
 
     results_summary = {
         "parameters": {
@@ -315,4 +320,4 @@ if __name__ == '__main__':
     )
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(results_summary, f, indent=4, ensure_ascii=False)
-    print(f"\n结果已保存至 {filename}")
+    logPrint(f"\n结果已保存至 {filename}")

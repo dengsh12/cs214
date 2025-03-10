@@ -19,17 +19,24 @@ def produce_messages(producer_conf, topic, num_messages, log_interval, metrics_l
     start_time = time.time()
     producer = Producer(producer_conf)
 
+    # 把消息创建、字符串复制拿到外面
+    timestamp = time.time()
+    ts_str = str(timestamp)
+    separator = "|"
+    padding_len = message_size - len(ts_str) - len(separator)
+    if padding_len>0:
+        padding_str = ("0" * padding_len)
+    else:
+        padding_str = ""
+    
     for i in range(num_messages):
         if i % log_interval == 0:
             print(f"🚀 生产者[{process_id}]发送消息: {i}/{num_messages}")
         timestamp = time.time()
         ts_str = str(timestamp)
-        separator = "|"
         # 如果设定的消息大小足够，则补充填充字符 "0"
         if message_size > len(ts_str) + len(separator):
-            padding_len = message_size - len(ts_str) - len(separator)
-            padding = "0" * padding_len
-            payload = ts_str + separator + padding
+            payload = ts_str + separator + padding_str
         else:
             payload = ts_str  # 如果消息大小设定过小，则仅发送时间戳
 

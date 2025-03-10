@@ -2,6 +2,7 @@ import time
 import threading
 import utility
 from rocketmq.client import PushConsumer, ConsumeStatus
+from utility import logPrint
 
 @utility.timer
 def consume_messages_rocketmq(consumer_conf, topic, log_interval,
@@ -9,6 +10,7 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     """
     使用“全局总量”退出的 RocketMQ 消费者示例（线程安全版本）。
     """
+    logPrint("consume with topic:",topic)
     start_time = time.time()
 
     # 从 consumer_conf 解析需要的共享对象
@@ -26,39 +28,38 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     local_count = 0  # 当前消费者自己消费的消息数
     local_lock = threading.Lock()  # 保护local_count和列表的锁
     last_message_time = time.time()
+
+    # 设置消费者
     consumer = PushConsumer(group_id)
     consumer.set_name_server_address(namesrv_addr)
 
     def on_message(msg):
-        # 如果全局停止标志已置位，就不处理消息了
-        if global_stop.value:
-            return ConsumeStatus.CONSUME_SUCCESS
-
         nonlocal last_message_time
-
         nonlocal local_count
+        
         last_message_time = current_time = time.time()
         try:
             body_str = msg.body.decode('utf-8')
             sent_str = body_str.split('|')[0]
             sent_ts = float(sent_str)
         except Exception as e:
-            print(f"🔴 [RocketMQ]消费者[{process_id}]解码失败: {e}")
+            logPrint(f"🔴 [RocketMQ]消费者[{process_id}]解码失败: {e}")
             return ConsumeStatus.CONSUME_SUCCESS
 
         # 计算延迟
         latency = current_time - sent_ts
 
         # 使用本地锁保护局部统计数据
-        latencies.append(latency)
-        if local_count < cold_start_count:
-            cold_start_latencies.append(latency)
-        local_count += 1
+        with local_lock:
+            latencies.append(latency)
+            if local_count < cold_start_count:
+                cold_start_latencies.append(latency)
+            local_count += 1
         if local_count % log_interval == 0:
-            print(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
+            logPrint(f"🔴 [RocketMQ]消费者[{process_id}]接收消息: local_count={local_count}")
 
         # 全局计数 + 判断是否到达停止条件
-        if global_count.value < total_messages:
+        with count_lock:
             global_count.value += 1
             if global_count.value >= total_messages:
                 global_stop.value = True
@@ -73,7 +74,7 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
     # 主循环：只要未全局停止就一直等
     while not global_stop.value:
         if time.time() - last_message_time > 5:
-            print(f"⏰ [RocketMQ]消费者[{process_id}]超时：连续5秒未收到消息，退出等待")
+            logPrint(f"⏰ [RocketMQ]消费者[{process_id}]超时：连续5秒未收到消息，退出等待")
             break
         time.sleep(0.2)
 
@@ -104,5 +105,5 @@ def consume_messages_rocketmq(consumer_conf, topic, log_interval,
             "cold_start_latency": cold_start_latency,
         })
 
-    print(f"✅ [RocketMQ]消费者[{process_id}]结束, 共消费 {local_count} 条, 用时 {duration:.2f} s, 吞吐量 {throughput:.2f} msg/s")
-    print(f"⏱️ consume_messages_rocketmq 执行耗时: {duration:.6f} 秒")
+    logPrint(f"✅ [RocketMQ]消费者[{process_id}]结束, 共消费 {local_count} 条, 用时 {duration:.2f} s, 吞吐量 {throughput:.2f} msg/s")
+    logPrint(f"⏱️ consume_messages_rocketmq 执行耗时: {duration:.6f} 秒")

@@ -3,6 +3,8 @@ import time
 import functools
 import psutil
 import threading
+from datetime import datetime
+import pytz
 
 def timer(func):
     """装饰器：计算函数运行时间"""
@@ -48,3 +50,11 @@ def stop_resource_monitor(samples, stop_event, monitor_thread):
     else:
         avg_cpu, avg_mem = 0, 0
     return avg_cpu, avg_mem
+
+def logPrint(*args, **kwargs):
+    # 获取洛杉矶当前时间
+    la_time = datetime.now(pytz.timezone('America/Los_Angeles'))
+    timestamp = la_time.strftime('%Y-%m-%d %H:%M:%S.%f')
+    
+    # 在输出前加上时间戳
+    print(f"[{timestamp}]", *args, **kwargs, flush=True)

@@ -1,5 +1,7 @@
 import os
 import subprocess
+import re
+import time
 
 # 修改为你本地实际路径
 MQADMIN_PATH = "/home/songh00/rocketmq_temp/rocketmq-all-4.9.8-bin-release/bin/mqadmin"
@@ -24,19 +26,43 @@ def run_mqadmin_command(cmd_list):
     subprocess.check_call(cmd_list, env=env)
 
 def delete_topic_rocketmq(topic_name, namesrv_addr):
-    print(f"尝试删除RocketMQ Topic: {topic_name}")
-    cmd = [
-        MQADMIN_PATH,
-        "deleteTopic",
-        "-n", namesrv_addr,
-        "-c", "DefaultCluster",
-        "-t", topic_name
-    ]
-    try:
-        run_mqadmin_command(cmd)
-        print(f"✅ RocketMQ Topic {topic_name} 删除成功")
-    except subprocess.CalledProcessError as e:
-        print(f"⚠️ RocketMQ Topic {topic_name} 删除失败或不存在: {e}")
+    # 解析 namesrv_addr，支持 , 或 ; 分隔
+    addr_list = re.split(r'[;,]', namesrv_addr)
+    
+    print(f"\n开始彻底删除 RocketMQ Topic: {topic_name}")
+
+    for addr in addr_list:
+        addr = addr.strip()
+        if not addr:
+            continue
+        
+    # 删除Topic
+    for addr in addr_list:
+        addr = addr.strip()  # 去除空格，避免格式问题
+        if not addr:
+            continue
+        print(f"\n正在删除 RocketMQ Topic: {topic_name}, NameServer: {addr}")
+        
+        # 2.1 先尝试从Broker删除
+        cmd = [
+            MQADMIN_PATH,
+            "deleteTopic",
+            "-n", addr,
+            "-c", "DefaultCluster",
+            "-t", topic_name
+        ]
+        try:
+            run_mqadmin_command(cmd)
+            print(f"✅ RocketMQ Topic {topic_name} 在 {addr} 删除成功（broker端）")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ RocketMQ Topic {topic_name} 在 {addr} 删除失败或不存在: {e}")
+        
+      
+    # 等待确认删除完成
+    print("等待删除操作完成...")
+    time.sleep(3)
+    print(f"✅ Topic {topic_name} 删除操作完成")
+
 
 def create_topic_rocketmq(topic_name, namesrv_addr, num_queues=8):
     print(f"🚀 创建 RocketMQ Topic: {topic_name}, queues={num_queues}")
