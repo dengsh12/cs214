@@ -313,7 +313,7 @@ if __name__ == '__main__':
     results_dir = os.path.join("results", args.mq_type)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    timestamp = utility.get_current_time_in_los_angeles()
     filename = os.path.join(
         results_dir,
         f"{args.num_consumers}consumer{args.num_producers}producer{args.messages_per_producer//1000}kmessages_{timestamp}.json"

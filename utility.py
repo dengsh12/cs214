@@ -51,6 +51,11 @@ def stop_resource_monitor(samples, stop_event, monitor_thread):
         avg_cpu, avg_mem = 0, 0
     return avg_cpu, avg_mem
 
+def get_current_time_in_los_angeles():
+    la_timezone = pytz.timezone('America/Los_Angeles')
+    current_time = datetime.now(la_timezone)
+    return current_time.strftime('%Y-%m-%d %H:%M:%S')
+
 def logPrint(*args, **kwargs):
     # 获取洛杉矶当前时间
     la_time = datetime.now(pytz.timezone('America/Los_Angeles'))

@@ -3,7 +3,7 @@
 # 依次测试不同消费者数量和不同消息数量下的性能指标
 bash run_shell/kafka_deploy/stop_kafka.sh
 
-for consumers in 5 10 20 30 40; do
+for consumers in {1..40}; do
     for messages in 50000 1000000 5000000; do
         echo "----- 测试消费者数量: $consumers, 每个生产者消息数: $messages -----"
         bash run_shell/kafka_deploy/start_kafka.sh

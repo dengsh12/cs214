@@ -1,0 +1,47 @@
+{
+    "parameters": {
+        "mq_type": "rocketmq",
+        "broker_address": "35.209.251.221:9876;35.239.56.104:9876;35.208.205.25:9876",
+        "topic": "test-throughput_scaling_rocketmq",
+        "num_producers": 40,
+        "num_consumers": 5,
+        "messages_per_producer": 10000,
+        "log_interval": 500,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 400000,
+        "producer_avg_throughput": 12797.866859456799,
+        "consumer_avg_throughput": 353.3617410936292,
+        "consumer_avg_latency": 97.14245571528508,
+        "consumer_p99_latency": 193.91390252113342,
+        "consumer_cold_start_latency": 0.2561939306259155,
+        "remote_avg_cpu": 0.14166666666666666,
+        "remote_avg_mem_mb": 9219.191101074219,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.149,
+                "avg_mem_mb": 9241.35,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.131,
+                "avg_mem_mb": 9198.23,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.145,
+                "avg_mem_mb": 9217.99,
+                "samples_count": 0
+            }
+        ]
+    }
+}
