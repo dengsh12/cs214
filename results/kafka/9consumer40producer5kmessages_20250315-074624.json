@@ -1,0 +1,73 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 9,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 98387.00635012305,
+        "consumer_avg_throughput": 6688.905219812853,
+        "consumer_avg_latency": 2.5851097201205246,
+        "consumer_p99_latency": 3.5572239557902017,
+        "consumer_cold_start_latency": 2.553862402704027,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.068,
+                "avg_mem_mb": 641.16,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.106,
+                "avg_mem_mb": 617.89,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.084,
+                "avg_mem_mb": 630.19,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.086,
+        "remote_avg_mem_mb": 629.75,
+        "merged_t2latencies": {
+            "1742024777.0326557": [
+                4.177392270768315,
+                199256
+            ],
+            "1742024777.132657": [
+                2.6178890392184253,
+                32
+            ],
+            "1742024779.873046": [
+                5.362409142925319,
+                365
+            ],
+            "1742024780.0688848": [
+                5.53552415737739,
+                52
+            ],
+            "1742024782.8858976": [
+                8.354370335902066,
+                121
+            ],
+            "1742024783.0996478": [
+                8.583079554313834,
+                172
+            ]
+        }
+    }
+}

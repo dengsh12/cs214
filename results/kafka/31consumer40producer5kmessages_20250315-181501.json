@@ -1,0 +1,73 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 31,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 86755.66234098792,
+        "consumer_avg_throughput": 1129.879222628206,
+        "consumer_avg_latency": 4.298848517069913,
+        "consumer_p99_latency": 5.133766897263065,
+        "consumer_cold_start_latency": 4.281121587445658,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.092,
+                "avg_mem_mb": 642.79,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.129,
+                "avg_mem_mb": 623.6,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.021,
+                "avg_mem_mb": 598.48,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.0807,
+        "remote_avg_mem_mb": 621.62,
+        "merged_t2latencies": {
+            "1742062491.0164745": [
+                8.796190946849283,
+                198989
+            ],
+            "1742062493.8526208": [
+                7.095186744804506,
+                616
+            ],
+            "1742062496.8728297": [
+                10.121651407666684,
+                211
+            ],
+            "1742062497.073788": [
+                10.31499002542761,
+                144
+            ],
+            "1742062499.8971813": [
+                13.134475088119506,
+                15
+            ],
+            "1742062500.0952852": [
+                13.33789336681366,
+                6
+            ]
+        }
+    }
+}

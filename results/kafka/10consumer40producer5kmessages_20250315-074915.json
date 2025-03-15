@@ -1,0 +1,81 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 10,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 114124.8673367366,
+        "consumer_avg_throughput": 4401.535996790638,
+        "consumer_avg_latency": 2.5421929277956488,
+        "consumer_p99_latency": 2.567007303237915,
+        "consumer_cold_start_latency": 2.5106150426864624,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.067,
+                "avg_mem_mb": 650.72,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.081,
+                "avg_mem_mb": 614.82,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.065,
+                "avg_mem_mb": 624.72,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.071,
+        "remote_avg_mem_mb": 630.09,
+        "merged_t2latencies": {
+            "1742024939.297172": [
+                4.224918665231686,
+                199455
+            ],
+            "1742024942.1364756": [
+                5.304567783781623,
+                206
+            ],
+            "1742024942.3501463": [
+                5.513002274400097,
+                59
+            ],
+            "1742024945.175336": [
+                8.342557793986185,
+                137
+            ],
+            "1742024948.1927207": [
+                11.353281302885575,
+                22
+            ],
+            "1742024951.2320645": [
+                14.39246392250061,
+                12
+            ],
+            "1742024951.4092953": [
+                14.569201691945393,
+                30
+            ],
+            "1742024954.252838": [
+                17.418231432950943,
+                79
+            ]
+        }
+    }
+}

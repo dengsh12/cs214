@@ -1,0 +1,69 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 13,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 100665.80056511806,
+        "consumer_avg_throughput": 2670.7682623453006,
+        "consumer_avg_latency": 4.275572613396069,
+        "consumer_p99_latency": 4.734637572215154,
+        "consumer_cold_start_latency": 4.259942377530612,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.071,
+                "avg_mem_mb": 652.87,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.112,
+                "avg_mem_mb": 625.47,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.021,
+                "avg_mem_mb": 596.87,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.068,
+        "remote_avg_mem_mb": 625.07,
+        "merged_t2latencies": {
+            "1742059394.2602942": [
+                8.13377343658572,
+                199494
+            ],
+            "1742059397.0816877": [
+                7.055092808890477,
+                177
+            ],
+            "1742059400.1041276": [
+                10.068179710706083,
+                120
+            ],
+            "1742059400.3201346": [
+                10.302169537002396,
+                176
+            ],
+            "1742059403.1360536": [
+                13.10482762336731,
+                25
+            ]
+        }
+    }
+}

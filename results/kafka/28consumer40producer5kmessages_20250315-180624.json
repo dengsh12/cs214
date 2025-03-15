@@ -1,0 +1,81 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 28,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 95885.85974680333,
+        "consumer_avg_throughput": 1806.4997763515355,
+        "consumer_avg_latency": 2.758625925399162,
+        "consumer_p99_latency": 4.217390579836709,
+        "consumer_cold_start_latency": 2.71417015160833,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.092,
+                "avg_mem_mb": 652.47,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.097,
+                "avg_mem_mb": 641.25,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.068,
+                "avg_mem_mb": 607.56,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.0857,
+        "remote_avg_mem_mb": 633.76,
+        "merged_t2latencies": {
+            "1742061971.3541553": [
+                6.136189561532986,
+                198774
+            ],
+            "1742061974.1667376": [
+                5.506376730071174,
+                270
+            ],
+            "1742061974.3988252": [
+                5.741372225746034,
+                124
+            ],
+            "1742061977.191935": [
+                8.534442914326975,
+                375
+            ],
+            "1742061977.4246926": [
+                8.756430813061293,
+                93
+            ],
+            "1742061980.215791": [
+                11.561657830780627,
+                51
+            ],
+            "1742061980.4387367": [
+                11.786961427101723,
+                91
+            ],
+            "1742061983.2483673": [
+                14.588770390761018,
+                198
+            ]
+        }
+    }
+}

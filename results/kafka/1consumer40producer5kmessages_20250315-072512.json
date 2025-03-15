@@ -1,0 +1,77 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 1,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 86908.69488100546,
+        "consumer_avg_throughput": 51913.689658964526,
+        "consumer_avg_latency": 3.0124599781644346,
+        "consumer_p99_latency": 3.7546653747558594,
+        "consumer_cold_start_latency": 2.5071641206741333,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.074,
+                "avg_mem_mb": 568.25,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.129,
+                "avg_mem_mb": 608.19,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.07,
+                "avg_mem_mb": 603.3,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.091,
+        "remote_avg_mem_mb": 593.25,
+        "merged_t2latencies": {
+            "1742023509.3653705": [
+                2.5431275334251255,
+                25988
+            ],
+            "1742023509.465371": [
+                2.6288168200662576,
+                31434
+            ],
+            "1742023509.565372": [
+                2.727235676362403,
+                33679
+            ],
+            "1742023509.6653752": [
+                2.828368261387512,
+                27001
+            ],
+            "1742023509.765377": [
+                2.9075562161557045,
+                19386
+            ],
+            "1742023510.466666": [
+                3.626475225289571,
+                35608
+            ],
+            "1742023510.5666695": [
+                3.7187857929613837,
+                26904
+            ]
+        }
+    }
+}

@@ -1,0 +1,65 @@
+{
+    "parameters": {
+        "mq_type": "kafka",
+        "broker_address": "35.209.251.221",
+        "topic": "test-throughput_scaling",
+        "num_producers": 40,
+        "num_consumers": 3,
+        "messages_per_producer": 5000,
+        "log_interval": 100,
+        "message_size": 100,
+        "remote_ips": [
+            "35.209.251.221",
+            "35.239.56.104",
+            "35.208.205.25"
+        ]
+    },
+    "summary": {
+        "total_messages_produced": 200000,
+        "producer_avg_throughput": 100502.16289227807,
+        "consumer_avg_throughput": 21057.291548713645,
+        "consumer_avg_latency": 2.4731998339067847,
+        "consumer_p99_latency": 2.5814417203267417,
+        "consumer_cold_start_latency": 2.4042366679509484,
+        "remote_servers": [
+            {
+                "ip": "35.209.251.221",
+                "avg_cpu": 0.066,
+                "avg_mem_mb": 644.62,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.239.56.104",
+                "avg_cpu": 0.109,
+                "avg_mem_mb": 620.26,
+                "samples_count": 0
+            },
+            {
+                "ip": "35.208.205.25",
+                "avg_cpu": 0.041,
+                "avg_mem_mb": 598.46,
+                "samples_count": 0
+            }
+        ],
+        "remote_avg_cpu": 0.072,
+        "remote_avg_mem_mb": 621.11,
+        "merged_t2latencies": {
+            "1742023811.883415": [
+                2.9084904833083263,
+                113524
+            ],
+            "1742023811.9834158": [
+                2.9026295684698487,
+                80888
+            ],
+            "1742023812.083421": [
+                2.5763448916901774,
+                5466
+            ],
+            "1742023814.6654494": [
+                5.138140475749969,
+                120
+            ]
+        }
+    }
+}
